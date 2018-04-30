@@ -1,0 +1,49 @@
+#!/bin/bash
+
+export LANG=ja_JP.UTF-8
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+set -u
+: $1
+readonly ARG_FILE=$1
+
+if [[ ! -e ${ARG_FILE} ]]; then
+    echo >&2 "err: ${ARG_FILE} is nothing."
+    exit 1
+fi
+if [[ $( git log ${ARG_FILE} | wc -l ) -eq 0 ]]; then
+    git status ${ARG_FILE}
+    exit
+fi
+
+git diff ${ARG_FILE}
+echo
+
+next_hash=$( git log --date=short --format="%h" ${ARG_FILE} | head -1 )
+(
+    while read _hash _date _user _comment; do
+
+        echo
+        echo "######################################################################"
+        echo "#"
+        echo "#  ${_date} [${_hash}] ${_user}"
+        echo "#    ${_comment}"
+        echo "#  diff ${_hash} ${next_hash} ${ARG_FILE}"
+        echo "#"
+        git diff --color ${_hash} ${next_hash} ${ARG_FILE}
+        echo
+        next_hash=${_hash}
+        sleep 0.2
+
+    done < <( git log --date=short --format="%h %ad %ae %s" ${ARG_FILE} | sed -n '2,$p' )
+
+        echo
+        echo "######################################################################"
+        echo "# [init]"
+        git show -s ${next_hash} ${ARG_FILE} | sed 's/^/#  /'
+        git show --oneline --color ${next_hash} ${ARG_FILE} | sed -n '2,$p'
+        echo
+
+    echo
+    echo "# END [$0] #"
+) | less -iMR

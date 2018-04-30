@@ -1,0 +1,28 @@
+#!/bin/bash
+
+reva=
+revb=
+file=$1
+
+export LANG=ja_JP.UTF-8
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+rlog ${file} | grep revision | awk '{print $2}' | grep -v rev | while read reva; do
+
+  if [ x"${revb}" != x ]; then
+    echo
+    echo "============================================================================="
+    echo "=  check-in  v.${revb}  by $( rlog -zLT ${file} | grep -A 1 "revision ${revb}" | tail -1 | awk '{print $5 "  ("$2,$3")"}' | tr -d ';' )"
+                                  #rlog -z+09:00 ${file}
+    echo "=    \$ rcsdiff $2$3 -r${reva} -r${revb} ${file}"
+    comment_line=$(( $(cat -n -- <( rlog -r${revb} ${file} ) | grep "date:.*author:.*state:.*lines:" | awk '{print $1}') + 1 ))
+    echo "=  $( rlog -zLT -r${revb} ${file} | tail -n +${comment_line} )"
+    rcsdiff $2 $3 -r${reva} -r${revb} ${file} 2>&1 | tail -n +6
+    echo "============================================================================="
+    echo
+  fi
+
+  revb=${reva}
+  sleep 0.1
+
+done | less -M
